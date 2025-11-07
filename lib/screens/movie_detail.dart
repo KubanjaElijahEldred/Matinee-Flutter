@@ -4,7 +4,11 @@ import 'package:movies/constants/api_constants.dart';
 import 'package:movies/modal_class/credits.dart';
 import 'package:movies/modal_class/genres.dart';
 import 'package:movies/modal_class/movie.dart';
+import 'package:movies/modal_class/video.dart';
+import 'package:movies/modal_class/function.dart';
 import 'package:movies/screens/widgets.dart';
+import 'package:movies/screens/trailer_player.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MovieDetailPage extends StatefulWidget {
   final Movie movie;
@@ -21,6 +25,34 @@ class MovieDetailPage extends StatefulWidget {
 }
 
 class _MovieDetailPageState extends State<MovieDetailPage> {
+  List<Video>? trailers;
+  bool isLoadingTrailers = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTrailers();
+  }
+
+  Future<void> _fetchTrailers() async {
+    setState(() {
+      isLoadingTrailers = true;
+    });
+    try {
+      final videoList = await fetchVideos(widget.movie.id!);
+      setState(() {
+        trailers = videoList.results?.where((v) => 
+          v.site == 'YouTube' && (v.type == 'Trailer' || v.type == 'Teaser')
+        ).toList();
+        isLoadingTrailers = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoadingTrailers = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,6 +178,33 @@ class _MovieDetailPageState extends State<MovieDetailPage> {
                                         )
                                       ],
                                     ),
+                                  ),
+                                ),
+                                // Action Buttons
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      _buildActionButton(
+                                        icon: Icons.play_circle_fill,
+                                        label: 'Play Trailer',
+                                        onTap: _playTrailer,
+                                        color: Colors.red,
+                                      ),
+                                      _buildActionButton(
+                                        icon: Icons.movie,
+                                        label: 'Play Movie',
+                                        onTap: _playMovie,
+                                        color: Colors.blue,
+                                      ),
+                                      _buildActionButton(
+                                        icon: Icons.download,
+                                        label: 'Download',
+                                        onTap: _downloadMovie,
+                                        color: Colors.green,
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 Expanded(
@@ -326,5 +385,123 @@ class _MovieDetailPageState extends State<MovieDetailPage> {
             ),
           );
         });
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color, width: 1.5),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _playTrailer() {
+    if (isLoadingTrailers) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Loading trailers...')),
+      );
+      return;
+    }
+
+    if (trailers == null || trailers!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No trailer available for this movie')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TrailerPlayer(
+          videoKey: trailers!.first.key!,
+          movieTitle: widget.movie.title!,
+        ),
+      ),
+    );
+  }
+
+  void _playMovie() async {
+    // For demonstration, this will search for the movie on YouTube
+    // In a real app, you might integrate with a streaming service
+    final movieTitle = widget.movie.title!.replaceAll(' ', '+');
+    final url = Uri.parse('https://www.youtube.com/results?search_query=$movieTitle+full+movie');
+    
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open browser')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  void _downloadMovie() async {
+    // For demonstration, this will open TMDB page
+    // In a real app, you might integrate with a download service
+    final url = Uri.parse('https://www.themoviedb.org/movie/${widget.movie.id}');
+    
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Opening movie page in browser...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open browser')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 }

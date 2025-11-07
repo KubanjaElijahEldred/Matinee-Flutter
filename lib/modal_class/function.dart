@@ -4,6 +4,7 @@ import 'package:movies/api/endpoints.dart';
 import 'package:movies/modal_class/credits.dart';
 import 'package:movies/modal_class/genres.dart';
 import 'package:movies/modal_class/movie.dart';
+import 'package:movies/modal_class/video.dart';
 
 Future<List<Movie>> fetchMovies(String api) async {
   MovieList movieList;
@@ -27,4 +28,12 @@ Future<GenresList> fetchGenres() async {
   var decodeRes = jsonDecode(res.body);
   genresList = GenresList.fromJson(decodeRes);
   return genresList;
+}
+
+Future<VideoList> fetchVideos(int movieId) async {
+  VideoList videoList;
+  var res = await http.get(Uri.parse(Endpoints.getMovieVideos(movieId)));
+  var decodeRes = jsonDecode(res.body);
+  videoList = VideoList.fromJson(decodeRes);
+  return videoList;
 }

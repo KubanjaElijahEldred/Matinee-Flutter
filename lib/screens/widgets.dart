@@ -53,9 +53,10 @@ class _DiscoverMoviesState extends State<DiscoverMovies> {
                 )
               : CarouselSlider.builder(
                   options: CarouselOptions(
-                    disableCenter: true,
                     viewportFraction: 0.8,
                     enlargeCenterPage: true,
+                    autoPlay: true,
+                    autoPlayInterval: Duration(seconds: 3),
                   ),
                   itemBuilder:
                       (BuildContext context, int index, pageViewIndex) {
